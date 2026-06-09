@@ -1,0 +1,64 @@
+stages:
+  - lint
+  - test
+  - build
+  - deploy
+
+variables:
+  PYTHON_VERSION: "3.11"
+  MONGO_URI: "mongodb://mongo:27017"
+  OLLAMA_URL: "http://localhost:11434"
+
+# ─── LINT ───────────────────────────────────────
+lint:
+  stage: lint
+  image: python:3.11-slim
+  before_script:
+    - pip install flake8 black --quiet
+  script:
+    - black --check app.py
+    - flake8 app.py --max-line-length=120 --ignore=E501,W503
+  allow_failure: true
+
+# ─── TEST ───────────────────────────────────────
+test:
+  stage: test
+  image: python:3.11-slim
+  services:
+    - name: mongo:7.0
+      alias: mongo
+  variables:
+    MONGO_URI: "mongodb://mongo:27017"
+  before_script:
+    - pip install -r requirements.txt pytest --quiet
+  script:
+    - pytest tests/ -v --tb=short
+  artifacts:
+    reports:
+      junit: test-results.xml
+    when: always
+
+# ─── BUILD ──────────────────────────────────────
+build:
+  stage: build
+  image: docker:24
+  services:
+    - docker:24-dind
+  script:
+    - docker build -t study-buddy:$CI_COMMIT_SHORT_SHA .
+    - docker tag study-buddy:$CI_COMMIT_SHORT_SHA study-buddy:latest
+  only:
+    - main
+    - dev
+
+# ─── DEPLOY (manual) ────────────────────────────
+deploy:
+  stage: deploy
+  image: python:3.11-slim
+  script:
+    - echo "Deploy to server"
+    - pip install -r requirements.txt --quiet
+    - streamlit run app.py &
+  when: manual
+  only:
+    - main
