@@ -3,15 +3,13 @@ import pdfplumber
 import requests
 import json
 from datetime import datetime, timezone
-from pymongo import MongoClient
 import re
 
 # ─────────────────────────────────────────────
 # CONFIG
 # ─────────────────────────────────────────────
-OLLAMA_URL   = "http://localhost:11434/api/generate"
-OLLAMA_MODEL = "llama3.2:3b"   # change to mistral:7b or llama3.1:8b if you have it
-MONGO_URI    = "mongodb://localhost:27017"
+OLLAMA_URL      = "http://localhost:11434/api/generate"
+AVAILABLE_MODELS = ["llama3.2:3b", "mistral:7b"]
 DB_NAME      = "studybuddy"
 
 # ─────────────────────────────────────────────
@@ -94,49 +92,6 @@ hr { border-color: #1e2130; }
 """, unsafe_allow_html=True)
 
 
-# ─────────────────────────────────────────────
-# MONGODB
-# ─────────────────────────────────────────────
-@st.cache_resource
-def get_db():
-    try:
-        client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=2000)
-        client.server_info()
-        return client[DB_NAME]
-    except Exception:
-        return None
-
-db = get_db()
-
-def save_chat(session_id, filename, role, message):
-    if db is None:
-        return
-    try:
-        db.chats.insert_one({
-            "session_id": session_id,
-            "filename":   filename,
-            "role":       role,
-            "message":    message,
-            "timestamp":  datetime.now(timezone.utc)
-        })
-    except:
-        pass
-
-def save_quiz_result(session_id, filename, score, total):
-    if db is None:
-        return
-    try:
-        db.quiz_results.insert_one({
-            "session_id": session_id,
-            "filename":   filename,
-            "score":      score,
-            "total":      total,
-            "percent":    round((score / total) * 100),
-            "timestamp":  datetime.now(timezone.utc)
-        })
-    except:
-        pass
-
 
 # ─────────────────────────────────────────────
 # PDF EXTRACTION
@@ -161,7 +116,7 @@ def ollama_stream(prompt):
     try:
         resp = requests.post(
             OLLAMA_URL,
-            json={"model": OLLAMA_MODEL, "prompt": prompt, "stream": True},
+            json={"model": st.session_state.get("ollama_model", "llama3.2:3b"), "prompt": prompt, "stream": True},
             stream=True,
             timeout=180
         )
@@ -179,7 +134,7 @@ def ollama_generate(prompt):
     try:
         resp = requests.post(
             OLLAMA_URL,
-            json={"model": OLLAMA_MODEL, "prompt": prompt, "stream": False},
+            json={"model": st.session_state.get("ollama_model", "llama3.2:3b"), "prompt": prompt, "stream": False},
             timeout=300
         )
         return resp.json().get("response", "")
@@ -262,11 +217,7 @@ def generate_quiz_questions(pdf_text):
     batch1 = generate_batch(chunk1[:4000], 1)
     all_questions.extend(batch1)
 
-    # Batch 2
-    batch2 = generate_batch(chunk2[:4000], 2)
-    all_questions.extend(batch2)
-
-    return all_questions[:20] if len(all_questions) >= 5 else None
+    return all_questions[:10] if len(all_questions) >= 3 else None
 
 
 # ─────────────────────────────────────────────
@@ -330,10 +281,20 @@ with st.sidebar:
         st.caption(f"{words:,} words · {len(st.session_state.pdf_text):,} chars")
 
         st.markdown("---")
-        if db is not None:
-            st.caption("🟢 MongoDB connected")
+        st.markdown("#### Model")
+        selected_model = st.radio(
+            "Choose model",
+            AVAILABLE_MODELS,
+            index=0,
+            label_visibility="collapsed"
+        )
+        st.session_state.ollama_model = selected_model
+        if selected_model == "llama3.2:3b":
+            st.caption("⚡ Fast · Lower quality")
         else:
-            st.caption("🟡 MongoDB offline (memory mode)")
+            st.caption("🧠 Slower · Better quality")
+
+        st.caption(f"🤖 Using: {selected_model}")
     else:
         st.markdown("---")
         st.info("👆 Upload a PDF to get started")
@@ -398,7 +359,6 @@ else:
         if (send and question) or user_input:
             q = user_input or question
             st.session_state.chat_history.append({"role": "user", "message": q})
-            save_chat(st.session_state.session_id, st.session_state.pdf_name, "user", q)
 
             prompt = build_chat_prompt(st.session_state.pdf_text, st.session_state.chat_history[:-1], q)
 
@@ -419,7 +379,6 @@ else:
                 unsafe_allow_html=True
             )
             st.session_state.chat_history.append({"role": "assistant", "message": full_response})
-            save_chat(st.session_state.session_id, st.session_state.pdf_name, "assistant", full_response)
 
         if st.session_state.chat_history:
             if st.button("🗑 Clear chat", key="clear_chat"):
@@ -428,15 +387,15 @@ else:
 
     # ── QUIZ MODE ──────────────────────────────────────
     elif st.session_state.mode == "Quiz":
-        st.markdown('<div class="hero-title">📝 Quiz</div>', unsafe_allow_html=True)
+        st.markdown('<div class="hero-title">📝 10-Question Quiz</div>', unsafe_allow_html=True)
         st.markdown(f'<div class="hero-sub">{st.session_state.pdf_name}</div>', unsafe_allow_html=True)
 
         if st.session_state.quiz_questions is None:
             col_gen, _ = st.columns([2, 3])
             with col_gen:
-                if st.button("⚡ Generate 20 Questions", use_container_width=True):
-                    progress_bar = st.progress(0, text="Starting quiz generation...")
-                    progress_bar.progress(10, text="Generating batch 1 of 2 (questions 1–10)...")
+                if st.button("⚡ Generate 10 Questions", use_container_width=True):
+                    progress_bar = st.progress(0, text="Starting quiz generation (10 questions)...")
+                    progress_bar.progress(10, text="Generating 10 questions from your notes...")
                     questions = []
 
                     half = len(st.session_state.pdf_text) // 2
@@ -444,12 +403,8 @@ else:
                     chunk2 = st.session_state.pdf_text[half:][:4000]
 
                     batch1 = generate_batch(chunk1, 1)
-                    progress_bar.progress(55, text=f"Batch 1 done ({len(batch1)} questions). Generating batch 2...")
+                    progress_bar.progress(90, text=f"Almost done ({len(batch1)} questions found)...")
                     questions.extend(batch1)
-
-                    batch2 = generate_batch(chunk2, 2)
-                    progress_bar.progress(95, text=f"Batch 2 done ({len(batch2)} questions). Finishing up...")
-                    questions.extend(batch2)
 
                     progress_bar.progress(100, text="Done!")
 
@@ -501,8 +456,6 @@ else:
             score     = sum(1 for i, q in enumerate(questions) if answers.get(i, "") == q["answer"])
             total     = len(questions)
             percent   = round((score / total) * 100)
-
-            save_quiz_result(st.session_state.session_id, st.session_state.pdf_name, score, total)
 
             col1, col2, col3 = st.columns(3)
             with col1: st.metric("Score",      f"{score}/{total}")
