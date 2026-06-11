@@ -12,7 +12,7 @@ logging.getLogger("pdfplumber").setLevel(logging.ERROR)
 # ─────────────────────────────────────────────
 # CONFIG
 # ─────────────────────────────────────────────
-AVAILABLE_MODELS = ["llama-3.2-3b-preview", "mixtral-8x7b-32768"]
+AVAILABLE_MODELS = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]
 
 # ─────────────────────────────────────────────
 # LANGUAGE CONFIG
