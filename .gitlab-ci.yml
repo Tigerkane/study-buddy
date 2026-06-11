@@ -1,34 +1,50 @@
 stages:
   - lint
+  - format
+  - type_check
   - test
+  - coverage
   - build
   - deploy
 
 variables:
-  PYTHON_VERSION: "3.11"
-  MONGO_URI: "mongodb://mongo:27017"
-  OLLAMA_URL: "http://localhost:11434"
+  PYTHON_VERSION: "3.12"
 
-# ─── LINT ───────────────────────────────────────
+# ── LINT ────────────────────────────────────────
 lint:
   stage: lint
-  image: python:3.11-slim
+  image: python:3.12-slim
   before_script:
-    - pip install flake8 black --quiet
+    - pip install flake8 ruff --quiet
+  script:
+    - flake8 app.py --max-line-length=120 --ignore=E501,W503
+    - ruff check app.py
+  allow_failure: false
+
+# ── FORMAT ──────────────────────────────────────
+format:
+  stage: format
+  image: python:3.12-slim
+  before_script:
+    - pip install black --quiet
   script:
     - black --check app.py
-    - flake8 app.py --max-line-length=120 --ignore=E501,W503
   allow_failure: true
 
-# ─── TEST ───────────────────────────────────────
+# ── TYPE CHECK ──────────────────────────────────
+type_check:
+  stage: type_check
+  image: python:3.12-slim
+  before_script:
+    - pip install mypy --quiet
+  script:
+    - mypy app.py --ignore-missing-imports
+  allow_failure: true
+
+# ── TEST ────────────────────────────────────────
 test:
   stage: test
-  image: python:3.11-slim
-  services:
-    - name: mongo:7.0
-      alias: mongo
-  variables:
-    MONGO_URI: "mongodb://mongo:27017"
+  image: python:3.12-slim
   before_script:
     - pip install -r requirements.txt pytest --quiet
   script:
@@ -38,7 +54,22 @@ test:
       junit: test-results.xml
     when: always
 
-# ─── BUILD ──────────────────────────────────────
+# ── COVERAGE ────────────────────────────────────
+coverage:
+  stage: coverage
+  image: python:3.12-slim
+  before_script:
+    - pip install -r requirements.txt pytest pytest-cov --quiet
+  script:
+    - pytest tests/ --cov=app --cov-report=term --cov-report=xml --cov-fail-under=50
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+  allow_failure: true
+
+# ── BUILD ───────────────────────────────────────
 build:
   stage: build
   image: docker:24
@@ -49,16 +80,14 @@ build:
     - docker tag study-buddy:$CI_COMMIT_SHORT_SHA study-buddy:latest
   only:
     - main
-    - dev
 
-# ─── DEPLOY (manual) ────────────────────────────
+# ── DEPLOY (manual) ─────────────────────────────
 deploy:
   stage: deploy
-  image: python:3.11-slim
+  image: python:3.12-slim
   script:
-    - echo "Deploy to server"
     - pip install -r requirements.txt --quiet
-    - streamlit run app.py &
+    - echo "Deploy manually with: python -m streamlit run app.py"
   when: manual
   only:
     - main
