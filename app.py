@@ -48,7 +48,7 @@ UI_TEXT = {
         "fast": "⚡ Fast · Llama 3.2", "powerful": "🧠 Powerful · Mixtral",
         "upload_landing": "Upload your notes", "upload_landing_sub": "Drop a PDF in the sidebar to start chatting<br>or generate a quiz",
         "chat_placeholder": "Ask anything about your notes — concepts, explanations, quick summaries...",
-        "api_key": "🔑 Groq API Key", "api_placeholder": "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",
+        "api_key": "🔑 Groq API Key", "api_placeholder": "Paste your Groq API key here...",
         "api_saved": "✅ API key saved", "api_missing": "❌ Please enter your Groq API key in the sidebar.",
     },
     "hi": {
@@ -75,7 +75,7 @@ UI_TEXT = {
         "fast": "⚡ तेज़ · Llama 3.2", "powerful": "🧠 शक्तिशाली · Mixtral",
         "upload_landing": "अपने नोट्स अपलोड करें", "upload_landing_sub": "चैट शुरू करने के लिए साइडबार में PDF डालें<br>या क्विज़ बनाएं",
         "chat_placeholder": "अपने नोट्स के बारे में कुछ भी पूछें...",
-        "api_key": "🔑 Groq API Key", "api_placeholder": "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",
+        "api_key": "🔑 Groq API Key", "api_placeholder": "Groq API key यहाँ डालें...",
         "api_saved": "✅ API key सेव हो गई", "api_missing": "❌ कृपया साइडबार में Groq API key डालें।",
     },
     "te": {
@@ -102,7 +102,7 @@ UI_TEXT = {
         "fast": "⚡ వేగం · Llama 3.2", "powerful": "🧠 శక్తివంతం · Mixtral",
         "upload_landing": "మీ నోట్స్ అప్లోడ్ చేయండి", "upload_landing_sub": "చాట్ ప్రారంభించడానికి సైడ్‌బార్‌లో PDF వేయండి<br>లేదా క్విజ్ తయారుచేయండి",
         "chat_placeholder": "మీ నోట్స్ గురించి ఏదైనా అడగండి...",
-        "api_key": "🔑 Groq API Key", "api_placeholder": "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",
+        "api_key": "🔑 Groq API Key", "api_placeholder": "Groq API key ఇక్కడ పేస్ట్ చేయండి...",
         "api_saved": "✅ API key సేవ్ అయింది", "api_missing": "❌ దయచేసి సైడ్‌బార్‌లో Groq API key నమోదు చేయండి.",
     }
 }
