@@ -1,7 +1,7 @@
 speckit:
   version: "1.0"
   project: "Last Minute Study Buddy"
-  maintainer: "@Saichaitanya9"
+  maintainer: "@ShreyasMogalapalli"
   branch_prefix: "feature/"
   spec_directory: "specs/"
   constitution: "specs/constitution.md"
