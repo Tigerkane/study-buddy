@@ -60,6 +60,7 @@ UI_TEXT = {
         "groq_model": "Groq Model",
         "ollama_info": "Make sure `ollama serve` is running locally",
         "ollama_error": "⚠️ Ollama not running. Start with: ollama serve",
+        "download": "📥 Download Chat History",
     },
     "hi": {
         "title": "📚 स्टडी बडी", "subtitle": "लास्ट मिनट · AI पावर्ड",
@@ -95,6 +96,7 @@ UI_TEXT = {
         "groq_model": "Groq मॉडल",
         "ollama_info": "`ollama serve` चला रहा है सुनिश्चित करें",
         "ollama_error": "⚠️ Ollama नहीं चल रहा। ollama serve चलाएं",
+        "download": "📥 चैट इतिहास डाउनलोड करें",
     },
     "te": {
         "title": "📚 స్టడీ బడీ", "subtitle": "లాస్ట్ మినిట్ · AI పవర్డ్",
@@ -130,6 +132,7 @@ UI_TEXT = {
         "groq_model": "Groq మోడల్",
         "ollama_info": "`ollama serve` నడుస్తుందో నిర్ధారించుకోండి",
         "ollama_error": "⚠️ Ollama నడవడం లేదు. ollama serve చేయండి",
+        "download": "📥 చాట్ చరిత్ర డౌన్‌లోడ్",
     }
 }
 
@@ -496,9 +499,25 @@ else:
             st.session_state.chat_history.append({"role": "assistant", "message": full_response})
 
         if st.session_state.chat_history:
-            if st.button(T["clear"], key="clear_chat"):
-                st.session_state.chat_history = []
-                st.rerun()
+            col_cl, col_dl = st.columns([1, 1])
+            with col_cl:
+                if st.button(T["clear"], key="clear_chat", use_container_width=True):
+                    st.session_state.chat_history = []
+                    st.rerun()
+            with col_dl:
+                # Build download text
+                chat_text = f"Chat History — {st.session_state.pdf_name}\n"
+                chat_text += "=" * 50 + "\n\n"
+                for msg in st.session_state.chat_history:
+                    role = T["you"] if msg["role"] == "user" else T["buddy"]
+                    chat_text += f"{role}:\n{msg['message']}\n\n"
+                st.download_button(
+                    label=T["download"],
+                    data=chat_text,
+                    file_name=f"chat_{st.session_state.pdf_name.replace('.pdf','')}.txt",
+                    mime="text/plain",
+                    use_container_width=True
+                )
 
     elif st.session_state.mode == "Quiz":
         st.markdown(f'<div class="hero-title">{T["quiz_title"]}</div>', unsafe_allow_html=True)
