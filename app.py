@@ -3,8 +3,8 @@ import pdfplumber
 import json
 import logging
 import re
+import requests
 from datetime import datetime, timezone
-from groq import Groq
 
 # Suppress pdfplumber font warnings
 logging.getLogger("pdfplumber").setLevel(logging.ERROR)
@@ -12,7 +12,9 @@ logging.getLogger("pdfplumber").setLevel(logging.ERROR)
 # ─────────────────────────────────────────────
 # CONFIG
 # ─────────────────────────────────────────────
-AVAILABLE_MODELS = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]
+GROQ_MODELS  = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]
+OLLAMA_MODELS = ["llama3.2:3b", "mistral:7b"]
+OLLAMA_URL   = "http://localhost:11434/api/generate"
 
 # ─────────────────────────────────────────────
 # LANGUAGE CONFIG
@@ -45,11 +47,19 @@ UI_TEXT = {
         "quiz_error": "❌ Failed to generate quiz. Try again.",
         "answer_all": "questions, then click Submit.", "answered": "answered",
         "language": "🌐 Language", "you": "YOU", "buddy": "STUDY BUDDY",
-        "fast": "⚡ Fast · Llama 3.2", "powerful": "🧠 Powerful · Mixtral",
         "upload_landing": "Upload your notes", "upload_landing_sub": "Drop a PDF in the sidebar to start chatting<br>or generate a quiz",
         "chat_placeholder": "Ask anything about your notes — concepts, explanations, quick summaries...",
-        "api_key": "🔑 Groq API Key", "api_placeholder": "Paste your Groq API key here...",
-        "api_saved": "✅ API key saved", "api_missing": "❌ Please enter your Groq API key in the sidebar.",
+        "ai_backend": "⚙️ AI Backend",
+        "groq_cloud": "☁️ Groq (Cloud)",
+        "ollama_local": "🖥️ Ollama (Local)",
+        "api_key": "🔑 Groq API Key (BYOK)",
+        "api_placeholder": "Paste your Groq API key (gsk_...)",
+        "api_saved": "✅ API key saved",
+        "api_missing": "❌ Please enter your Groq API key in the sidebar.",
+        "ollama_model": "Ollama Model",
+        "groq_model": "Groq Model",
+        "ollama_info": "Make sure `ollama serve` is running locally",
+        "ollama_error": "⚠️ Ollama not running. Start with: ollama serve",
     },
     "hi": {
         "title": "📚 स्टडी बडी", "subtitle": "लास्ट मिनट · AI पावर्ड",
@@ -64,46 +74,62 @@ UI_TEXT = {
         "score": "स्कोर", "percentage": "प्रतिशत", "grade": "ग्रेड",
         "excellent": "🏆 शानदार", "good": "👍 अच्छा", "keep_studying": "📖 और पढ़ें",
         "answer_review": "### उत्तर समीक्षा", "your_answer": "आपका उत्तर", "correct": "सही उत्तर",
-        "thinking": "सोच रहा हूँ...", "generating": "आपके नोट्स से 10 प्रश्न बना रहा हूँ...",
+        "thinking": "सोच रहा हूँ...", "generating": "10 प्रश्न बना रहा हूँ...",
         "quick_prompts": "**त्वरित प्रश्न:**",
-        "prompt1": "मुख्य बिंदु संक्षेप करें", "prompt2": "सबसे महत्वपूर्ण शब्द क्या हैं?", "prompt3": "इससे 5 परीक्षा टिप्स दें",
-        "upload_info": "👆 शुरू करने के लिए PDF अपलोड करें",
+        "prompt1": "मुख्य बिंदु संक्षेप करें", "prompt2": "सबसे महत्वपूर्ण शब्द?", "prompt3": "5 परीक्षा टिप्स दें",
+        "upload_info": "👆 PDF अपलोड करें",
         "upload_success": "अक्षर निकाले गए", "upload_error": "❌ टेक्स्ट नहीं निकाला जा सका।",
-        "quiz_error": "❌ क्विज़ बनाने में विफल। दोबारा कोशिश करें।",
-        "answer_all": "प्रश्नों के उत्तर दें, फिर जमा करें।", "answered": "उत्तर दिए",
+        "quiz_error": "❌ क्विज़ बनाने में विफल।",
+        "answer_all": "प्रश्नों के उत्तर दें।", "answered": "उत्तर दिए",
         "language": "🌐 भाषा", "you": "आप", "buddy": "स्टडी बडी",
-        "fast": "⚡ तेज़ · Llama 3.2", "powerful": "🧠 शक्तिशाली · Mixtral",
-        "upload_landing": "अपने नोट्स अपलोड करें", "upload_landing_sub": "चैट शुरू करने के लिए साइडबार में PDF डालें<br>या क्विज़ बनाएं",
+        "upload_landing": "अपने नोट्स अपलोड करें", "upload_landing_sub": "साइडबार में PDF डालें",
         "chat_placeholder": "अपने नोट्स के बारे में कुछ भी पूछें...",
-        "api_key": "🔑 Groq API Key", "api_placeholder": "Groq API key यहाँ डालें...",
-        "api_saved": "✅ API key सेव हो गई", "api_missing": "❌ कृपया साइडबार में Groq API key डालें।",
+        "ai_backend": "⚙️ AI बैकएंड",
+        "groq_cloud": "☁️ Groq (क्लाउड)",
+        "ollama_local": "🖥️ Ollama (लोकल)",
+        "api_key": "🔑 Groq API Key (BYOK)",
+        "api_placeholder": "Groq API key डालें (gsk_...)",
+        "api_saved": "✅ API key सेव हो गई",
+        "api_missing": "❌ Groq API key डालें।",
+        "ollama_model": "Ollama मॉडल",
+        "groq_model": "Groq मॉडल",
+        "ollama_info": "`ollama serve` चला रहा है सुनिश्चित करें",
+        "ollama_error": "⚠️ Ollama नहीं चल रहा। ollama serve चलाएं",
     },
     "te": {
         "title": "📚 స్టడీ బడీ", "subtitle": "లాస్ట్ మినిట్ · AI పవర్డ్",
         "upload": "నోట్స్ అప్లోడ్ చేయండి", "drop": "ఇక్కడ PDF వేయండి",
         "mode": "మోడ్", "chat": "💬 చాట్", "quiz": "📝 క్విజ్",
         "model": "మోడల్", "file_info": "ఫైల్ సమాచారం",
-        "chat_title": "💬 మీ నోట్స్‌తో చాట్ చేయండి", "quiz_title": "📝 10 ప్రశ్నల క్విజ్",
-        "ask_placeholder": "ఉదా: ఈ అంశాన్ని సులభంగా వివరించండి...",
+        "chat_title": "💬 మీ నోట్స్‌తో చాట్", "quiz_title": "📝 10 ప్రశ్నల క్విజ్",
+        "ask_placeholder": "ఉదా: ఈ అంశాన్ని వివరించండి...",
         "send": "పంపు →", "clear": "🗑 చాట్ తొలగించు",
         "generate": "⚡ 10 ప్రశ్నలు తయారుచేయి", "submit": "✅ క్విజ్ సమర్పించు",
-        "regenerate": "🔄 మళ్ళీ తయారుచేయి", "retake": "🔄 మళ్ళీ క్విజ్ ఇవ్వు",
+        "regenerate": "🔄 మళ్ళీ తయారుచేయి", "retake": "🔄 మళ్ళీ క్విజ్",
         "score": "స్కోర్", "percentage": "శాతం", "grade": "గ్రేడ్",
         "excellent": "🏆 అద్భుతం", "good": "👍 బాగుంది", "keep_studying": "📖 మరింత చదవండి",
         "answer_review": "### సమాధాన సమీక్ష", "your_answer": "మీ సమాధానం", "correct": "సరైన సమాధానం",
-        "thinking": "ఆలోచిస్తున్నాను...", "generating": "మీ నోట్స్ నుండి 10 ప్రశ్నలు తయారుచేస్తున్నాను...",
+        "thinking": "ఆలోచిస్తున్నాను...", "generating": "10 ప్రశ్నలు తయారుచేస్తున్నాను...",
         "quick_prompts": "**త్వరిత ప్రశ్నలు:**",
-        "prompt1": "ముఖ్యమైన అంశాలు సంగ్రహించు", "prompt2": "అతి ముఖ్యమైన పదాలు ఏమిటి?", "prompt3": "దీని నుండి 5 పరీక్ష చిట్కాలు ఇవ్వు",
-        "upload_info": "👆 ప్రారంభించడానికి PDF అప్లోడ్ చేయండి",
+        "prompt1": "ముఖ్యమైన అంశాలు", "prompt2": "ముఖ్యమైన పదాలు?", "prompt3": "5 పరీక్ష చిట్కాలు",
+        "upload_info": "👆 PDF అప్లోడ్ చేయండి",
         "upload_success": "అక్షరాలు సేకరించబడ్డాయి", "upload_error": "❌ టెక్స్ట్ సేకరించలేకపోయాం.",
-        "quiz_error": "❌ క్విజ్ తయారుచేయడం విఫలమైంది. మళ్ళీ ప్రయత్నించండి.",
-        "answer_all": "ప్రశ్నలకు సమాధానమివ్వండి, తర్వాత సమర్పించండి.", "answered": "సమాధానమిచ్చారు",
+        "quiz_error": "❌ క్విజ్ విఫలమైంది.",
+        "answer_all": "ప్రశ్నలకు సమాధానమివ్వండి.", "answered": "సమాధానమిచ్చారు",
         "language": "🌐 భాష", "you": "మీరు", "buddy": "స్టడీ బడీ",
-        "fast": "⚡ వేగం · Llama 3.2", "powerful": "🧠 శక్తివంతం · Mixtral",
-        "upload_landing": "మీ నోట్స్ అప్లోడ్ చేయండి", "upload_landing_sub": "చాట్ ప్రారంభించడానికి సైడ్‌బార్‌లో PDF వేయండి<br>లేదా క్విజ్ తయారుచేయండి",
-        "chat_placeholder": "మీ నోట్స్ గురించి ఏదైనా అడగండి...",
-        "api_key": "🔑 Groq API Key", "api_placeholder": "Groq API key ఇక్కడ పేస్ట్ చేయండి...",
-        "api_saved": "✅ API key సేవ్ అయింది", "api_missing": "❌ దయచేసి సైడ్‌బార్‌లో Groq API key నమోదు చేయండి.",
+        "upload_landing": "నోట్స్ అప్లోడ్ చేయండి", "upload_landing_sub": "సైడ్‌బార్‌లో PDF వేయండి",
+        "chat_placeholder": "నోట్స్ గురించి అడగండి...",
+        "ai_backend": "⚙️ AI బ్యాకెండ్",
+        "groq_cloud": "☁️ Groq (క్లౌడ్)",
+        "ollama_local": "🖥️ Ollama (లోకల్)",
+        "api_key": "🔑 Groq API Key (BYOK)",
+        "api_placeholder": "Groq API key పేస్ట్ చేయండి (gsk_...)",
+        "api_saved": "✅ API key సేవ్ అయింది",
+        "api_missing": "❌ Groq API key నమోదు చేయండి.",
+        "ollama_model": "Ollama మోడల్",
+        "groq_model": "Groq మోడల్",
+        "ollama_info": "`ollama serve` నడుస్తుందో నిర్ధారించుకోండి",
+        "ollama_error": "⚠️ Ollama నడవడం లేదు. ollama serve చేయండి",
     }
 }
 
@@ -113,7 +139,7 @@ UI_TEXT = {
 st.set_page_config(page_title="Last Minute Study Buddy", page_icon="📚", layout="wide", initial_sidebar_state="expanded")
 
 # ─────────────────────────────────────────────
-# CUSTOM CSS
+# CSS
 # ─────────────────────────────────────────────
 st.markdown("""
 <style>
@@ -126,32 +152,105 @@ html, body, [class*="css"] { font-family: 'Space Grotesk', sans-serif; }
 .chat-user { background: #1a3a5c; border-left: 3px solid #3b82f6; padding: 12px 16px; border-radius: 0 10px 10px 0; margin: 8px 0; font-size: 0.92rem; }
 .chat-ai { background: #141a1f; border-left: 3px solid #10b981; padding: 12px 16px; border-radius: 0 10px 10px 0; margin: 8px 0; font-size: 0.92rem; }
 .chat-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px; font-weight: 600; }
-.user-label { color: #3b82f6; }
-.ai-label { color: #10b981; }
+.user-label { color: #3b82f6; } .ai-label { color: #10b981; }
 .quiz-card { background: #13151c; border: 1px solid #1e2130; border-radius: 12px; padding: 20px 24px; margin-bottom: 20px; }
 .quiz-q { font-size: 1rem; font-weight: 600; color: #f1f5f9; margin-bottom: 14px; line-height: 1.5; }
 .quiz-number { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: #6366f1; font-weight: 500; margin-bottom: 6px; }
+.backend-groq { background: #1a2744; border: 1px solid #3b82f6; border-radius: 8px; padding: 8px 12px; margin: 4px 0; font-size: 0.8rem; color: #93c5fd; }
+.backend-ollama { background: #1a2e1a; border: 1px solid #10b981; border-radius: 8px; padding: 8px 12px; margin: 4px 0; font-size: 0.8rem; color: #6ee7b7; }
 [data-testid="stFileUploader"] { background: #13151c; border: 2px dashed #2d3748; border-radius: 12px; padding: 8px; }
 .stButton > button { background: #6366f1; color: white; border: none; border-radius: 8px; font-family: 'Space Grotesk', sans-serif; font-weight: 600; padding: 8px 20px; transition: all 0.2s; }
 .stButton > button:hover { background: #4f46e5; transform: translateY(-1px); }
-.stTextInput > div > div > input, .stTextArea textarea { background: #13151c !important; border: 1px solid #2d3748 !important; color: #e8eaf0 !important; border-radius: 8px !important; font-family: 'Space Grotesk', sans-serif !important; }
+.stTextInput > div > div > input { background: #13151c !important; border: 1px solid #2d3748 !important; color: #e8eaf0 !important; border-radius: 8px !important; }
 .stRadio > div { gap: 10px; }
 hr { border-color: #1e2130; }
 [data-testid="metric-container"] { background: #13151c; border: 1px solid #1e2130; border-radius: 10px; padding: 12px 16px; }
+@media (max-width: 768px) {
+    .hero-title { font-size: 1.4rem; }
+    .chat-user, .chat-ai { padding: 8px 12px; font-size: 0.85rem; }
+    .quiz-card { padding: 14px 16px; }
+}
 </style>
 """, unsafe_allow_html=True)
 
 
 # ─────────────────────────────────────────────
-# GROQ CLIENT
+# AI FUNCTIONS
 # ─────────────────────────────────────────────
 def get_groq_client():
-    api_key = st.session_state.get("groq_api_key") or st.secrets.get("GROQ_API_KEY", None)
-    if not api_key:
-        lang = st.session_state.get("language", "en")
-        st.error(UI_TEXT[lang]["api_missing"])
+    try:
+        from groq import Groq
+        api_key = st.session_state.get("groq_api_key") or st.secrets.get("GROQ_API_KEY", None)
+        if not api_key:
+            lang = st.session_state.get("language", "en")
+            st.error(UI_TEXT[lang]["api_missing"])
+            st.stop()
+        return Groq(api_key=api_key)
+    except ImportError:
+        st.error("❌ groq package not installed. Run: pip install groq")
         st.stop()
-    return Groq(api_key=api_key)
+
+
+def ai_stream(prompt):
+    backend = st.session_state.get("backend", "Groq")
+    model   = st.session_state.get("selected_model", GROQ_MODELS[0])
+
+    if backend == "Groq":
+        try:
+            client = get_groq_client()
+            stream = client.chat.completions.create(
+                model=model,
+                messages=[{"role": "user", "content": prompt}],
+                stream=True, max_tokens=1024
+            )
+            for chunk in stream:
+                yield chunk.choices[0].delta.content or ""
+        except Exception as e:
+            yield f"\n⚠️ Groq error: {e}"
+    else:
+        try:
+            resp = requests.post(
+                OLLAMA_URL,
+                json={"model": model, "prompt": prompt, "stream": True},
+                stream=True, timeout=180
+            )
+            for line in resp.iter_lines():
+                if line:
+                    data = json.loads(line)
+                    yield data.get("response", "")
+                    if data.get("done"):
+                        break
+        except Exception as e:
+            lang = st.session_state.get("language", "en")
+            yield f"\n{UI_TEXT[lang]['ollama_error']}: {e}"
+
+
+def ai_generate(prompt):
+    backend = st.session_state.get("backend", "Groq")
+    model   = st.session_state.get("selected_model", GROQ_MODELS[0])
+
+    if backend == "Groq":
+        try:
+            client = get_groq_client()
+            response = client.chat.completions.create(
+                model=model,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=2048
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            return f"⚠️ Groq error: {e}"
+    else:
+        try:
+            resp = requests.post(
+                OLLAMA_URL,
+                json={"model": model, "prompt": prompt, "stream": False},
+                timeout=300
+            )
+            return resp.json().get("response", "")
+        except Exception as e:
+            lang = st.session_state.get("language", "en")
+            return f"{UI_TEXT[lang]['ollama_error']}: {e}"
 
 
 # ─────────────────────────────────────────────
@@ -171,35 +270,8 @@ def extract_pdf_text(uploaded_file):
 
 
 # ─────────────────────────────────────────────
-# AI HELPERS
+# CHAT PROMPT
 # ─────────────────────────────────────────────
-def groq_stream(prompt, model):
-    try:
-        client = get_groq_client()
-        stream = client.chat.completions.create(
-            model=model,
-            messages=[{"role": "user", "content": prompt}],
-            stream=True, max_tokens=1024
-        )
-        for chunk in stream:
-            yield chunk.choices[0].delta.content or ""
-    except Exception as e:
-        yield f"\n⚠️ Groq error: {e}"
-
-
-def groq_generate(prompt, model):
-    try:
-        client = get_groq_client()
-        response = client.chat.completions.create(
-            model=model,
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=2048
-        )
-        return response.choices[0].message.content
-    except Exception as e:
-        return f"⚠️ Groq error: {e}"
-
-
 def build_chat_prompt(pdf_text, history, user_question):
     history_str = ""
     for h in history[-6:]:
@@ -210,7 +282,7 @@ def build_chat_prompt(pdf_text, history, user_question):
 NOTES:
 {pdf_text[:4000]}
 
-CONVERSATION SO FAR:
+CONVERSATION:
 {history_str}
 Student: {user_question}
 Assistant:"""
@@ -219,14 +291,14 @@ Assistant:"""
 # ─────────────────────────────────────────────
 # QUIZ GENERATION
 # ─────────────────────────────────────────────
-def generate_batch(chunk, model):
+def generate_quiz_questions(pdf_text):
     prompt = f"""Generate exactly 10 multiple choice questions from these notes.
 Each question must have 4 options (A, B, C, D) and one correct answer.
 
 Notes:
-{chunk}
+{pdf_text[:4000]}
 
-Start with [ end with ]. Valid JSON only. No markdown, no explanation.
+Start with [ end with ]. Valid JSON only. No markdown.
 
 [
   {{
@@ -237,7 +309,7 @@ Start with [ end with ]. Valid JSON only. No markdown, no explanation.
 ]"""
 
     for attempt in range(3):
-        raw = groq_generate(prompt, model)
+        raw = ai_generate(prompt)
         try:
             clean = re.sub(r"```json|```", "", raw).strip()
             start = clean.find("[")
@@ -250,12 +322,7 @@ Start with [ end with ]. Valid JSON only. No markdown, no explanation.
                 return valid[:10]
         except:
             continue
-    return []
-
-
-def generate_quiz_questions(pdf_text, model):
-    questions = generate_batch(pdf_text[:4000], model)
-    return questions[:10] if len(questions) >= 3 else None
+    return None
 
 
 # ─────────────────────────────────────────────
@@ -269,9 +336,10 @@ if "chat_history"   not in st.session_state: st.session_state.chat_history   = [
 if "quiz_questions" not in st.session_state: st.session_state.quiz_questions = None
 if "quiz_answers"   not in st.session_state: st.session_state.quiz_answers   = {}
 if "quiz_submitted" not in st.session_state: st.session_state.quiz_submitted = False
-if "groq_model"     not in st.session_state: st.session_state.groq_model     = AVAILABLE_MODELS[0]
 if "language"       not in st.session_state: st.session_state.language       = "en"
 if "groq_api_key"   not in st.session_state: st.session_state.groq_api_key   = ""
+if "backend"        not in st.session_state: st.session_state.backend        = "Groq"
+if "selected_model" not in st.session_state: st.session_state.selected_model = GROQ_MODELS[0]
 
 
 # ─────────────────────────────────────────────
@@ -279,32 +347,52 @@ if "groq_api_key"   not in st.session_state: st.session_state.groq_api_key   = "
 # ─────────────────────────────────────────────
 with st.sidebar:
     lang = st.session_state.get("language", "en")
-    T = UI_TEXT[lang]
+    T    = UI_TEXT[lang]
 
     st.markdown(f'<div class="hero-title">{T["title"]}</div>', unsafe_allow_html=True)
     st.markdown(f'<div class="hero-sub">{T["subtitle"]}</div>', unsafe_allow_html=True)
 
-    # Language selector
+    # Language
     st.markdown(f"#### {T['language']}")
     selected_lang = st.radio("lang", list(LANGUAGES.keys()), index=list(LANGUAGES.values()).index(st.session_state.language), label_visibility="collapsed", horizontal=True)
     st.session_state.language = LANGUAGES[selected_lang]
     lang = st.session_state.language
-    T = UI_TEXT[lang]
+    T    = UI_TEXT[lang]
 
     st.markdown("---")
 
-    # API Key input
-    st.markdown(f"#### {T['api_key']}")
-    api_key_input = st.text_input("api_key", type="password", placeholder=T["api_placeholder"], label_visibility="collapsed", value=st.session_state.groq_api_key)
-    if api_key_input:
-        st.session_state.groq_api_key = api_key_input
-        st.caption(T["api_saved"])
+    # AI Backend toggle
+    st.markdown(f"#### {T['ai_backend']}")
+    backend = st.radio("backend", [T["groq_cloud"], T["ollama_local"]], index=0, label_visibility="collapsed")
+    st.session_state.backend = "Groq" if "Groq" in backend or "क्लाउड" in backend or "క్లౌడ్" in backend else "Ollama"
+
+    if st.session_state.backend == "Groq":
+        # BYOK — API key input
+        st.markdown(f"#### {T['api_key']}")
+        api_key_input = st.text_input("api", type="password", placeholder=T["api_placeholder"], label_visibility="collapsed", value=st.session_state.groq_api_key)
+        if api_key_input:
+            st.session_state.groq_api_key = api_key_input
+            st.caption(T["api_saved"])
+
+        # Groq model selector
+        st.markdown(f"#### {T['groq_model']}")
+        selected_model = st.radio("gmodel", GROQ_MODELS, index=0, label_visibility="collapsed")
+        st.session_state.selected_model = selected_model
+        st.markdown(f'<div class="backend-groq">☁️ {selected_model}</div>', unsafe_allow_html=True)
+
+    else:
+        # Ollama model selector
+        st.markdown(f"#### {T['ollama_model']}")
+        selected_model = st.radio("omodel", OLLAMA_MODELS, index=0, label_visibility="collapsed")
+        st.session_state.selected_model = selected_model
+        st.markdown(f'<div class="backend-ollama">🖥️ {selected_model}</div>', unsafe_allow_html=True)
+        st.caption(T["ollama_info"])
 
     st.markdown("---")
 
     # PDF Upload
     st.markdown(f"#### {T['upload']}")
-    uploaded_file = st.file_uploader(T["drop"], type=["pdf"], help="Upload lecture notes or textbook chapter")
+    uploaded_file = st.file_uploader(T["drop"], type=["pdf"])
 
     if uploaded_file:
         if uploaded_file.name != st.session_state.pdf_name:
@@ -331,17 +419,10 @@ with st.sidebar:
             st.session_state.mode = "Quiz"
 
         st.markdown("---")
-        st.markdown(f"#### {T['model']}")
-        selected_model = st.radio("model", AVAILABLE_MODELS, index=0, label_visibility="collapsed")
-        st.session_state.groq_model = selected_model
-        st.caption(T["fast"] if selected_model == AVAILABLE_MODELS[0] else T["powerful"])
-
-        st.markdown("---")
         st.markdown(f"#### {T['file_info']}")
         st.markdown(f"**{st.session_state.pdf_name}**")
         words = len(st.session_state.pdf_text.split())
         st.caption(f"{words:,} words · {len(st.session_state.pdf_text):,} chars")
-        st.caption(f"🤖 {selected_model}")
     else:
         st.markdown("---")
         st.info(T["upload_info"])
@@ -351,7 +432,7 @@ with st.sidebar:
 # MAIN CONTENT
 # ─────────────────────────────────────────────
 lang = st.session_state.get("language", "en")
-T = UI_TEXT[lang]
+T    = UI_TEXT[lang]
 
 if not st.session_state.pdf_text:
     col1, col2, col3 = st.columns([1, 2, 1])
@@ -368,14 +449,13 @@ if not st.session_state.pdf_text:
 else:
     if st.session_state.mode == "Chat":
         st.markdown(f'<div class="hero-title">{T["chat_title"]}</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="hero-sub">{st.session_state.pdf_name}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="hero-sub">{st.session_state.pdf_name} · {st.session_state.selected_model}</div>', unsafe_allow_html=True)
 
         if not st.session_state.chat_history:
-            st.markdown(f"""<div style="background:#13151c; border:1px solid #1e2130; border-radius:12px; padding:20px; text-align:center; color:#6b7280; margin-bottom:16px;">{T["chat_placeholder"]}</div>""", unsafe_allow_html=True)
+            st.markdown(f"""<div style="background:#13151c;border:1px solid #1e2130;border-radius:12px;padding:20px;text-align:center;color:#6b7280;margin-bottom:16px;">{T["chat_placeholder"]}</div>""", unsafe_allow_html=True)
             st.markdown(T["quick_prompts"])
             qcols = st.columns(3)
-            prompts = [T["prompt1"], T["prompt2"], T["prompt3"]]
-            for i, p in enumerate(prompts):
+            for i, p in enumerate([T["prompt1"], T["prompt2"], T["prompt3"]]):
                 with qcols[i]:
                     if st.button(p, key=f"qp_{i}", use_container_width=True):
                         st.session_state._quick_prompt = p
@@ -408,7 +488,7 @@ else:
             response_placeholder = st.empty()
             full_response = ""
             with st.spinner(T["thinking"]):
-                for token in groq_stream(prompt, st.session_state.groq_model):
+                for token in ai_stream(prompt):
                     full_response += token
                     response_placeholder.markdown(f'<div class="chat-ai"><div class="chat-label ai-label">{T["buddy"]}</div>{full_response}▌</div>', unsafe_allow_html=True)
 
@@ -422,14 +502,14 @@ else:
 
     elif st.session_state.mode == "Quiz":
         st.markdown(f'<div class="hero-title">{T["quiz_title"]}</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="hero-sub">{st.session_state.pdf_name}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="hero-sub">{st.session_state.pdf_name} · {st.session_state.selected_model}</div>', unsafe_allow_html=True)
 
         if st.session_state.quiz_questions is None:
             col_gen, _ = st.columns([2, 3])
             with col_gen:
                 if st.button(T["generate"], use_container_width=True):
                     with st.spinner(T["generating"]):
-                        questions = generate_quiz_questions(st.session_state.pdf_text, st.session_state.groq_model)
+                        questions = generate_quiz_questions(st.session_state.pdf_text)
                     if questions:
                         st.session_state.quiz_questions = questions
                         st.session_state.quiz_answers   = {}
@@ -484,19 +564,19 @@ else:
             st.markdown(T["answer_review"])
 
             for i, q in enumerate(questions):
-                user_ans   = answers.get(i, "?")
-                correct    = q["answer"]
-                is_correct = user_ans == correct
+                user_ans    = answers.get(i, "?")
+                correct     = q["answer"]
+                is_correct  = user_ans == correct
                 icon         = "✅" if is_correct else "❌"
                 border_color = "#10b981" if is_correct else "#ef4444"
                 correct_opt  = next((o for o in q["options"] if o.startswith(correct)), correct)
                 user_opt     = next((o for o in q["options"] if o.startswith(user_ans)), user_ans)
 
                 st.markdown(f"""
-                <div style="background:#13151c; border-left:3px solid {border_color}; border-radius:0 10px 10px 0; padding:14px 18px; margin-bottom:10px;">
-                    <div style="font-size:0.75rem; color:#6b7280; margin-bottom:4px;">Q{i+1}</div>
-                    <div style="font-weight:600; color:#f1f5f9; margin-bottom:8px;">{icon} {q['q']}</div>
-                    <div style="font-size:0.85rem; color:#94a3b8;">{T["your_answer"]}: <span style="color:{'#10b981' if is_correct else '#ef4444'}">{user_opt}</span></div>
+                <div style="background:#13151c;border-left:3px solid {border_color};border-radius:0 10px 10px 0;padding:14px 18px;margin-bottom:10px;">
+                    <div style="font-size:0.75rem;color:#6b7280;margin-bottom:4px;">Q{i+1}</div>
+                    <div style="font-weight:600;color:#f1f5f9;margin-bottom:8px;">{icon} {q['q']}</div>
+                    <div style="font-size:0.85rem;color:#94a3b8;">{T["your_answer"]}: <span style="color:{'#10b981' if is_correct else '#ef4444'}">{user_opt}</span></div>
                     {"" if is_correct else f'<div style="font-size:0.85rem;color:#10b981;margin-top:2px;">{T["correct"]}: {correct_opt}</div>'}
                 </div>
                 """, unsafe_allow_html=True)
