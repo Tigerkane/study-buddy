@@ -75,21 +75,75 @@ Open **http://localhost:8501** in your browser.
 
 ```
 study-buddy/
-├── app.py                  ← Main Streamlit app (Groq/cloud)
-├── requirements.txt        ← Python dependencies
-├── Dockerfile              ← Container setup
-├── .gitlab-ci.yml          ← CI/CD pipeline
-├── specs/                  ← SpecKit documentation
-│   ├── constitution.md
-│   └── 001-study-buddy/
-│       ├── spec.md
-│       ├── plan.md
-│       ├── tasks.md
-│       └── contracts/
-├── tests/
-│   └── test_app.py
-└── .specify/               ← SpecKit config
-```
+│   .dockerignore
+│   .editorconfig
+│   .env.example
+│   .gitignore
+│   .gitlab-ci.yml
+│   .pre-commit-config.yaml
+│   AGENTS.md
+│   app.py
+│   CHANGELOG.md
+│   cliff.toml
+│   CODE_OF_CONDUCT.md
+│   CONTRIBUTING.md
+│   Dockerfile
+│   git
+│   LICENSE
+│   README.md
+│   requirements.txt
+│   SECURITY.md
+│   USER_MANUAL.md
+│
+├───.gitlab
+│   ├───issue_templates
+│   │       bug.md
+│   │
+│   └───merge_request_templates
+│           default.md
+│
+├───.specify
+│   │   settings.yml
+│   │
+│   ├───memory
+│   │       constitution.md
+│   │
+│   └───templates
+│           feature.md
+│           plan-template.md
+│           spec-template.md
+│           tasks-template.md
+│
+├───.streamlit
+│       config.toml
+│       secrets.toml
+│
+├───docs
+│   └───specs
+│       │   constitution.md
+│       │
+│       └───001-study-buddy
+│           │   data-model.md
+│           │   plan.md
+│           │   spec.md
+│           │   tasks.md
+│           │
+│           └───contracts
+│                   api-contracts.md
+│
+├───specs
+│   │   constitution.md
+│   │
+│   └───001-study-buddy
+│       │   plan.md
+│       │   spec.md
+│       │   tasks.md
+│       │
+│       └───contracts
+│               api-contracts.md
+│
+└───tests
+        test_app.py
 
 ---
 
