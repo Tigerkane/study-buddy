@@ -1,5 +1,4 @@
 stages:
-  - lint
   - format
   - type_check
   - security
@@ -71,7 +70,7 @@ test:
   before_script:
     - pip install -r requirements.txt pytest --quiet
   script:
-    - pytest tests/ -v --tb=short
+    - pytest tests/ -v --tb=short --junitxml=test-results.xml
   artifacts:
     reports:
       junit: test-results.xml
