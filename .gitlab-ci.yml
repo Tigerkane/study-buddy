@@ -1,4 +1,5 @@
 stages:
+  - lint
   - format
   - type_check
   - security
