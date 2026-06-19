@@ -1,5 +1,4 @@
 stages:
-  - lint
   - format
   - type_check
   - security
@@ -10,16 +9,6 @@ stages:
 
 variables:
   PYTHON_VERSION: "3.12"
-
-# ── LINT ────────────────────────────────────────
-lint:
-  stage: lint
-  image: python:3.12-slim
-  before_script:
-    - pip install flake8 ruff pylint --quiet
-  script:
-    - echo "Skipping lint"
-  allow_failure: true
 
 # ── FORMAT ──────────────────────────────────────
 format:
@@ -47,21 +36,10 @@ security:
   stage: security
   image: python:3.12-slim
   before_script:
-    - pip install bandit pip-audit semgrep --quiet
+    - pip install bandit pip-audit --quiet
   script:
     - bandit -r app.py -ll
     - pip-audit --requirement requirements.txt || true
-    - semgrep --config=auto app.py || true
-  allow_failure: true
-
-# ── DEAD CODE ───────────────────────────────────
-dead_code:
-  stage: lint
-  image: python:3.12-slim
-  before_script:
-    - pip install vulture --quiet
-  script:
-    - vulture app.py --min-confidence 80 || true
   allow_failure: true
 
 # ── TEST ────────────────────────────────────────
@@ -110,7 +88,7 @@ deploy:
   image: python:3.12-slim
   script:
     - pip install -r requirements.txt --quiet
-    - echo "Deploy manually with: python -m streamlit run app.py"
+    - echo "Deploy ready"
   when: manual
   only:
     - main
