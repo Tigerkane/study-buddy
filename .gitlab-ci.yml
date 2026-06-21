@@ -4,7 +4,6 @@ stages:
   - security
   - test
   - coverage
-  - build
   - deploy
 
 variables:
@@ -69,16 +68,6 @@ coverage:
         coverage_format: cobertura
         path: coverage.xml
   allow_failure: true
-
-# ── BUILD ───────────────────────────────────────
-build:
-  stage: build
-  image: docker:24
-  script:
-    - docker build -t study-buddy:$CI_COMMIT_SHORT_SHA .
-    - docker tag study-buddy:$CI_COMMIT_SHORT_SHA study-buddy:latest
-  only:
-    - main
 
 # ── DEPLOY (manual) ─────────────────────────────
 deploy:
