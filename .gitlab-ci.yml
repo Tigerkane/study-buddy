@@ -26,7 +26,7 @@ type_check:
   stage: type_check
   image: python:3.12-slim
   before_script:
-    - pip install mypy --quiet
+    - pip install --default-timeout=1000 mypy --quiet
   script:
     - mypy app.py --ignore-missing-imports
   allow_failure: true
@@ -47,7 +47,7 @@ test:
   stage: test
   image: python:3.12-slim
   before_script:
-    - pip install -r requirements.txt pytest --quiet
+    - pip install --default-timeout=1000 -r requirements.txt pytest --quiet
   script:
     - pytest tests/ -v --tb=short --junitxml=test-results.xml
   artifacts:
@@ -60,7 +60,7 @@ coverage:
   stage: coverage
   image: python:3.12-slim
   before_script:
-    - pip install -r requirements.txt pytest pytest-cov --quiet
+    - pip install --default-timeout=1000 -r requirements.txt pytest pytest-cov --quiet
   script:
     - pytest tests/ --cov=app --cov-report=term --cov-report=xml --cov-fail-under=50 || true
   artifacts:
