@@ -74,8 +74,6 @@ coverage:
 build:
   stage: build
   image: docker:24
-  services:
-    - docker:24-dind
   script:
     - docker build -t study-buddy:$CI_COMMIT_SHORT_SHA .
     - docker tag study-buddy:$CI_COMMIT_SHORT_SHA study-buddy:latest
