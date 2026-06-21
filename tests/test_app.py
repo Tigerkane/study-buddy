@@ -41,17 +41,17 @@ class TestPDFExtraction:
 class TestQuizParsing:
 
     def test_valid_quiz_json(self):
-        """Valid quiz JSON should parse to 20 questions."""
+        """Valid quiz JSON should parse to 10 questions."""
         sample = json.dumps([
             {
                 "q": f"Question {i}?",
                 "options": ["A) opt1", "B) opt2", "C) opt3", "D) opt4"],
                 "answer": "A"
             }
-            for i in range(20)
+            for i in range(10)
         ])
         questions = json.loads(sample)
-        assert len(questions) == 20
+        assert len(questions) == 10
         assert questions[0]["answer"] == "A"
 
     def test_quiz_json_with_fences(self):
@@ -111,21 +111,21 @@ class TestMongoDB:
 class TestScoreCalculation:
 
     def test_perfect_score(self):
-        questions = [{"answer": "A"}] * 20
-        answers = {i: "A" for i in range(20)}
+        questions = [{"answer": "A"}] * 10
+        answers = {i: "A" for i in range(10)}
         score = sum(1 for i, q in enumerate(questions) if answers.get(i) == q["answer"])
-        assert score == 20
+        assert score == 10
 
     def test_zero_score(self):
-        questions = [{"answer": "A"}] * 20
-        answers = {i: "B" for i in range(20)}
+        questions = [{"answer": "A"}] * 10
+        answers = {i: "B" for i in range(10)}
         score = sum(1 for i, q in enumerate(questions) if answers.get(i) == q["answer"])
         assert score == 0
 
     def test_percent_calculation(self):
-        score, total = 15, 20
+        score, total = 7, 10
         percent = round((score / total) * 100)
-        assert percent == 75
+        assert percent == 70
 
     def test_grade_labels(self):
         assert "Excellent" in ("🏆 Excellent" if 85 >= 80 else "")

@@ -79,7 +79,6 @@ build:
   script:
     - docker build -t study-buddy:$CI_COMMIT_SHORT_SHA .
     - docker tag study-buddy:$CI_COMMIT_SHORT_SHA study-buddy:latest
-  allow_failure: true
   only:
     - main
 
