@@ -14,7 +14,8 @@ format:
   stage: format
   image: python:3.12-slim
   before_script:
-    - pip install black --quiet
+    - pip install uv --quiet
+    - uv pip install --system black --quiet
   script:
     - black --check app.py
   allow_failure: true
@@ -24,7 +25,8 @@ type_check:
   stage: type_check
   image: python:3.12-slim
   before_script:
-    - pip install --default-timeout=1000 mypy --quiet
+    - pip install uv --quiet
+    - uv pip install --system mypy --quiet
   script:
     - mypy app.py --ignore-missing-imports
   allow_failure: true
@@ -34,7 +36,8 @@ security:
   stage: security
   image: python:3.12-slim
   before_script:
-    - pip install bandit pip-audit --quiet
+    - pip install uv --quiet
+    - uv pip install --system bandit pip-audit --quiet
   script:
     - bandit -r app.py -ll
     - pip-audit --requirement requirements.txt || true
@@ -45,8 +48,9 @@ test:
   stage: test
   image: python:3.12-slim
   before_script:
-    - pip install --default-timeout=1000 -r requirements.txt --quiet
-    - pip install --default-timeout=1000 pytest --quiet
+    - pip install uv --quiet
+    - uv pip install --system -r requirements.txt --quiet
+    - uv pip install --system pytest --quiet
   script:
     - pytest tests/ -v --tb=short --junitxml=test-results.xml
   artifacts:
@@ -59,8 +63,9 @@ coverage:
   stage: coverage
   image: python:3.12-slim
   before_script:
-    - pip install --default-timeout=1000 -r requirements.txt --quiet
-    - pip install --default-timeout=1000 pytest pytest-cov --quiet
+    - pip install uv --quiet
+    - uv pip install --system -r requirements.txt --quiet
+    - uv pip install --system pytest pytest-cov --quiet
   script:
     - pytest tests/ --cov=app --cov-report=term --cov-report=xml --cov-fail-under=50
   artifacts:
@@ -75,7 +80,8 @@ deploy:
   stage: deploy
   image: python:3.12-slim
   script:
-    - pip install -r requirements.txt --quiet
+    - pip install uv --quiet
+    - uv pip install --system -r requirements.txt --quiet
     - echo "Deploy ready"
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
