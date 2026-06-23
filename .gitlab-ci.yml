@@ -12,9 +12,8 @@ variables:
 # ── FORMAT ──────────────────────────────────────
 format:
   stage: format
-  image: python:3.12-slim
+  image: ghcr.io/astral-sh/uv:python3.12-bookworm-slim
   before_script:
-    - pip install uv --quiet
     - uv pip install --system black --quiet
   script:
     - black --check app.py
@@ -23,9 +22,8 @@ format:
 # ── TYPE CHECK ──────────────────────────────────
 type_check:
   stage: type_check
-  image: python:3.12-slim
+  image: ghcr.io/astral-sh/uv:python3.12-bookworm-slim
   before_script:
-    - pip install uv --quiet
     - uv pip install --system mypy --quiet
   script:
     - mypy app.py --ignore-missing-imports
@@ -34,9 +32,8 @@ type_check:
 # ── SECURITY ────────────────────────────────────
 security:
   stage: security
-  image: python:3.12-slim
+  image: ghcr.io/astral-sh/uv:python3.12-bookworm-slim
   before_script:
-    - pip install uv --quiet
     - uv pip install --system bandit pip-audit --quiet
   script:
     - bandit -r app.py -ll
@@ -46,9 +43,8 @@ security:
 # ── TEST ────────────────────────────────────────
 test:
   stage: test
-  image: python:3.12-slim
+  image: ghcr.io/astral-sh/uv:python3.12-bookworm-slim
   before_script:
-    - pip install uv --quiet
     - uv pip install --system -r requirements.txt --quiet
     - uv pip install --system pytest --quiet
   script:
@@ -61,9 +57,8 @@ test:
 # ── COVERAGE ────────────────────────────────────
 coverage:
   stage: coverage
-  image: python:3.12-slim
+  image: ghcr.io/astral-sh/uv:python3.12-bookworm-slim
   before_script:
-    - pip install uv --quiet
     - uv pip install --system -r requirements.txt --quiet
     - uv pip install --system pytest pytest-cov --quiet
   script:
@@ -78,9 +73,8 @@ coverage:
 # ── DEPLOY (manual) ─────────────────────────────
 deploy:
   stage: deploy
-  image: python:3.12-slim
+  image: ghcr.io/astral-sh/uv:python3.12-bookworm-slim
   script:
-    - pip install uv --quiet
     - uv pip install --system -r requirements.txt --quiet
     - echo "Deploy ready"
   rules:
