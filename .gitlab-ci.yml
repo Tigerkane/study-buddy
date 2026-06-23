@@ -14,10 +14,9 @@ format:
   stage: format
   image: python:3.12-slim
   before_script:
-    - pip install black pyupgrade --quiet
+    - pip install black --quiet
   script:
     - black --check app.py
-    - pyupgrade --py312-plus app.py || true
   allow_failure: true
 
 # ── TYPE CHECK ──────────────────────────────────
@@ -46,7 +45,8 @@ test:
   stage: test
   image: python:3.12-slim
   before_script:
-    - pip install --default-timeout=1000 -r requirements.txt pytest --quiet
+    - pip install --default-timeout=1000 -r requirements.txt --quiet
+    - pip install --default-timeout=1000 pytest --quiet
   script:
     - pytest tests/ -v --tb=short --junitxml=test-results.xml
   artifacts:
@@ -59,9 +59,10 @@ coverage:
   stage: coverage
   image: python:3.12-slim
   before_script:
-    - pip install --default-timeout=1000 -r requirements.txt pytest pytest-cov --quiet
+    - pip install --default-timeout=1000 -r requirements.txt --quiet
+    - pip install --default-timeout=1000 pytest pytest-cov --quiet
   script:
-    - pytest tests/ --cov=app --cov-report=term --cov-report=xml --cov-fail-under=50 || true
+    - pytest tests/ --cov=app --cov-report=term --cov-report=xml --cov-fail-under=50
   artifacts:
     reports:
       coverage_report:
@@ -76,6 +77,6 @@ deploy:
   script:
     - pip install -r requirements.txt --quiet
     - echo "Deploy ready"
-  when: manual
-  only:
-    - main
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: manual
