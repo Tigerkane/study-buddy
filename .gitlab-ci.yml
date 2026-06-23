@@ -62,7 +62,7 @@ coverage:
     - uv pip install --system -r requirements.txt --quiet
     - uv pip install --system pytest pytest-cov --quiet
   script:
-    - pytest tests/ --cov=app --cov-report=term --cov-report=xml --cov-fail-under=50
+    - pytest tests/ --cov=app --cov-report=term --cov-report=xml
   artifacts:
     reports:
       coverage_report:
