@@ -741,8 +741,7 @@ with st.sidebar:
             # Full-document mode toggle — only available with Groq's large-context model
             can_use_full_doc = (
                 st.session_state.backend == "Groq"
-                and st.session_state.selected_model
-                == GROQ_MODELS[0]  # llama-3.3-70b-versatile
+                and st.session_state.selected_model == GROQ_MODELS[0]  # llama-3.3-70b-versatile
             )
             if can_use_full_doc:
                 full_doc = st.toggle(
@@ -1061,17 +1060,38 @@ else:
             cards = st.session_state.flashcards
             idx = st.session_state.flashcard_idx
             card = cards[idx]
-            face_text = (
-                card["back"] if st.session_state.flashcard_flipped else card["front"]
-            )
-            face_color = "#10b981" if st.session_state.flashcard_flipped else "#6366f1"
+            flipped = st.session_state.flashcard_flipped
+            flip_class = "is-flipped" if flipped else ""
+            front_text = card["front"].replace('"', "&quot;")
+            back_text = card["back"].replace('"', "&quot;")
 
             st.markdown(
                 f"""
-                <div style="background:#13151c;border:2px solid {face_color};border-radius:16px;
-                            padding:50px 30px;min-height:220px;display:flex;align-items:center;
-                            justify-content:center;text-align:center;margin-bottom:14px;">
-                    <div style="font-size:1.2rem;color:#f1f5f9;font-weight:600;">{face_text}</div>
+                <style>
+                .fc-scene {{ perspective: 1200px; margin-bottom: 14px; }}
+                .fc-card {{
+                    position: relative; width: 100%; min-height: 220px;
+                    transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1);
+                    transform-style: preserve-3d; cursor: pointer;
+                }}
+                .fc-card.is-flipped {{ transform: rotateY(180deg); }}
+                .fc-face {{
+                    position: absolute; inset: 0; backface-visibility: hidden;
+                    border-radius: 16px; padding: 30px; display: flex;
+                    align-items: center; justify-content: center; text-align: center;
+                    font-size: 1.15rem; font-weight: 600; color: #f1f5f9;
+                }}
+                .fc-front {{ background: #13151c; border: 2px solid #6366f1; }}
+                .fc-back {{
+                    background: #13151c; border: 2px solid #10b981;
+                    transform: rotateY(180deg);
+                }}
+                </style>
+                <div class="fc-scene">
+                    <div class="fc-card {flip_class}" id="fc-card">
+                        <div class="fc-face fc-front">{front_text}</div>
+                        <div class="fc-face fc-back">{back_text}</div>
+                    </div>
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -1080,27 +1100,19 @@ else:
             col_flip, col_info = st.columns([1, 2])
             with col_flip:
                 if st.button(T["flip_card"], use_container_width=True):
-                    st.session_state.flashcard_flipped = (
-                        not st.session_state.flashcard_flipped
-                    )
+                    st.session_state.flashcard_flipped = not st.session_state.flashcard_flipped
                     st.rerun()
             with col_info:
                 st.caption(f"{T['card_of']} {idx + 1} / {len(cards)}")
 
             col_prev, col_next, col_regen = st.columns(3)
             with col_prev:
-                if st.button(
-                    T["prev_card"], use_container_width=True, disabled=(idx == 0)
-                ):
+                if st.button(T["prev_card"], use_container_width=True, disabled=(idx == 0)):
                     st.session_state.flashcard_idx -= 1
                     st.session_state.flashcard_flipped = False
                     st.rerun()
             with col_next:
-                if st.button(
-                    T["next_card"],
-                    use_container_width=True,
-                    disabled=(idx == len(cards) - 1),
-                ):
+                if st.button(T["next_card"], use_container_width=True, disabled=(idx == len(cards) - 1)):
                     st.session_state.flashcard_idx += 1
                     st.session_state.flashcard_flipped = False
                     st.rerun()
