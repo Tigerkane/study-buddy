@@ -578,14 +578,25 @@ with st.sidebar:
 
     # Language
     st.markdown(f"#### {T['language']}")
+
+    # Reverse map: language code -> display label, so the radio's default
+    # always matches the language code actually stored in session_state.
+    code_to_label = {v: k for k, v in LANGUAGES.items()}
+    current_label = code_to_label.get(st.session_state.language, "English")
+
     selected_lang = st.radio(
         "lang",
         list(LANGUAGES.keys()),
-        index=list(LANGUAGES.values()).index(st.session_state.language),
+        key="lang_radio",
         label_visibility="collapsed",
         horizontal=True,
+        index=list(LANGUAGES.keys()).index(current_label),
     )
-    st.session_state.language = LANGUAGES[selected_lang]
+    new_code = LANGUAGES[selected_lang]
+    if new_code != st.session_state.language:
+        st.session_state.language = new_code
+        st.rerun()
+
     lang = st.session_state.language
     T = UI_TEXT[lang]
 
