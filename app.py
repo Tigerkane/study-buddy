@@ -617,7 +617,12 @@ with st.sidebar:
         )
         if api_key_input:
             st.session_state.groq_api_key = api_key_input
-            st.caption(T["api_saved"])
+            if api_key_input.startswith("gsk_") and len(api_key_input) > 20:
+                st.caption(T["api_saved"])
+            else:
+                st.caption(
+                    "⚠️ This doesn't look like a valid Groq key — it should start with `gsk_`. Get one free at console.groq.com"
+                )
 
         # Groq model selector
         st.markdown(f"#### {T['groq_model']}")
