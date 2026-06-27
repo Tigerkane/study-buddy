@@ -93,6 +93,8 @@ UI_TEXT = {
         "prev_card": "← Prev",
         "card_of": "Card",
         "flashcard_error": "❌ Failed to generate flashcards. Try again.",
+        "section_label": "Section to study",
+        "section_word": "Section",
     },
     "hi": {
         "title": "📚 स्टडी बडी",
@@ -165,6 +167,8 @@ UI_TEXT = {
         "prev_card": "← पीछे",
         "card_of": "कार्ड",
         "flashcard_error": "❌ फ्लैशकार्ड बनाने में विफल।",
+        "section_label": "पढ़ने के लिए सेक्शन",
+        "section_word": "सेक्शन",
     },
     "te": {
         "title": "📚 స్టడీ బడీ",
@@ -237,6 +241,8 @@ UI_TEXT = {
         "prev_card": "← మునుపటి",
         "card_of": "కార్డ్",
         "flashcard_error": "❌ ఫ్లాష్‌కార్డ్‌లు విఫలమైంది.",
+        "section_label": "చదవడానికి సెక్షన్",
+        "section_word": "సెక్షన్",
     },
 }
 
@@ -387,6 +393,19 @@ def extract_pdf_text(uploaded_file):
         return text.strip()
     except Exception:
         return None
+
+
+def get_active_chunk(full_text, chunk_size=4000):
+    """Return the text to send to the AI.
+    If full_doc_mode is on (Groq + llama-3.3-70b only), send the whole document
+    (capped at ~100k chars, well within the model's large context window).
+    Otherwise, return just the user-selected ~4000-char section.
+    """
+    if st.session_state.get("full_doc_mode", False):
+        return full_text[:100000]
+    idx = st.session_state.get("active_chunk", 0)
+    start = idx * chunk_size
+    return full_text[start : start + chunk_size]
 
 
 # ─────────────────────────────────────────────
@@ -541,6 +560,10 @@ if "flashcard_flipped" not in st.session_state:
     st.session_state.flashcard_flipped = False
 if "pdf_names" not in st.session_state:
     st.session_state.pdf_names = []
+if "active_chunk" not in st.session_state:
+    st.session_state.active_chunk = 0
+if "full_doc_mode" not in st.session_state:
+    st.session_state.full_doc_mode = False
 
 
 # ─────────────────────────────────────────────
@@ -649,10 +672,11 @@ with st.sidebar:
                 st.session_state.quiz_submitted = False
                 st.session_state.flashcards = None
                 st.session_state.flashcard_idx = 0
+                st.session_state.active_chunk = 0
                 st.success(f"✅ {len(combined):,} {T['upload_success']}")
                 if len(combined) > 4000:
                     st.warning(
-                        "⚠️ Only the first ~4000 characters are used per question — long PDFs may lose content from later sections."
+                        "⚠️ This document is long — use the Section selector below to choose which part to study (each AI request covers ~4000 characters)."
                     )
             else:
                 st.error(T["upload_error"])
@@ -690,6 +714,46 @@ with st.sidebar:
         st.markdown(f"**{st.session_state.pdf_name}**")
         words = len(st.session_state.pdf_text.split())
         st.caption(f"{words:,} words · {len(st.session_state.pdf_text):,} chars")
+
+        # Section selector for long documents (each section ~4000 chars)
+        CHUNK_SIZE = 4000
+        full_text = st.session_state.pdf_text
+        num_chunks = max(1, -(-len(full_text) // CHUNK_SIZE))  # ceil division
+        if num_chunks > 1:
+            st.markdown("---")
+
+            # Full-document mode toggle — only available with Groq's large-context model
+            can_use_full_doc = (
+                st.session_state.backend == "Groq"
+                and st.session_state.selected_model
+                == GROQ_MODELS[0]  # llama-3.3-70b-versatile
+            )
+            if can_use_full_doc:
+                full_doc = st.toggle(
+                    "📖 Read entire document (slower, uses Llama 3.3 70B's large context)",
+                    value=st.session_state.full_doc_mode,
+                )
+                st.session_state.full_doc_mode = full_doc
+            else:
+                st.session_state.full_doc_mode = False
+                st.caption(
+                    "💡 Switch to Groq · llama-3.3-70b-versatile to enable full-document mode"
+                )
+
+            if not st.session_state.full_doc_mode:
+                st.markdown(f"#### 📑 {T.get('section_label', 'Section to study')}")
+                section_options = list(range(num_chunks))
+                chosen = st.selectbox(
+                    "section",
+                    section_options,
+                    index=min(st.session_state.active_chunk, num_chunks - 1),
+                    format_func=lambda i: f"{T.get('section_word', 'Section')} {i + 1} / {num_chunks}",
+                    label_visibility="collapsed",
+                )
+                st.session_state.active_chunk = chosen
+                st.caption(
+                    f"≈ {min(CHUNK_SIZE, len(full_text) - chosen * CHUNK_SIZE):,} chars in this section"
+                )
     else:
         st.markdown("---")
         st.info(T["upload_info"])
@@ -771,8 +835,9 @@ else:
         if (send and question) or user_input:
             q = user_input or question
             st.session_state.chat_history.append({"role": "user", "message": q})
+            active_text = get_active_chunk(st.session_state.pdf_text)
             prompt = build_chat_prompt(
-                st.session_state.pdf_text, st.session_state.chat_history[:-1], q
+                active_text, st.session_state.chat_history[:-1], q
             )
             st.markdown(
                 f'<div class="chat-user"><div class="chat-label user-label">{T["you"]}</div>{q}</div>',
@@ -832,7 +897,9 @@ else:
             with col_gen:
                 if st.button(T["generate"], use_container_width=True):
                     with st.spinner(T["generating"]):
-                        questions = generate_quiz_questions(st.session_state.pdf_text)
+                        questions = generate_quiz_questions(
+                            get_active_chunk(st.session_state.pdf_text)
+                        )
                     if questions:
                         st.session_state.quiz_questions = questions
                         st.session_state.quiz_answers = {}
@@ -964,7 +1031,9 @@ else:
             with col_gen:
                 if st.button(T["gen_flashcards"], use_container_width=True):
                     with st.spinner(T["generating"]):
-                        cards = generate_flashcards(st.session_state.pdf_text)
+                        cards = generate_flashcards(
+                            get_active_chunk(st.session_state.pdf_text)
+                        )
                     if cards:
                         st.session_state.flashcards = cards
                         st.session_state.flashcard_idx = 0
