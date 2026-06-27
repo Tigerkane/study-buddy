@@ -80,6 +80,19 @@ UI_TEXT = {
         "ollama_info": "Make sure `ollama serve` is running locally",
         "ollama_error": "⚠️ Ollama not running. Start with: ollama serve",
         "download": "📥 Download Chat History",
+        "flashcards": "🃏 Flashcards",
+        "difficulty": "Difficulty",
+        "easy": "Easy",
+        "medium": "Medium",
+        "hard": "Hard",
+        "multi_pdf_info": "Upload one or more PDFs",
+        "quiz_download": "📥 Download Quiz Report",
+        "gen_flashcards": "⚡ Generate Flashcards",
+        "flip_card": "👆 Tap to flip",
+        "next_card": "Next →",
+        "prev_card": "← Prev",
+        "card_of": "Card",
+        "flashcard_error": "❌ Failed to generate flashcards. Try again.",
     },
     "hi": {
         "title": "📚 स्टडी बडी",
@@ -139,6 +152,19 @@ UI_TEXT = {
         "ollama_info": "`ollama serve` चला रहा है सुनिश्चित करें",
         "ollama_error": "⚠️ Ollama नहीं चल रहा। ollama serve चलाएं",
         "download": "📥 चैट इतिहास डाउनलोड करें",
+        "flashcards": "🃏 फ्लैशकार्ड",
+        "difficulty": "कठिनाई",
+        "easy": "आसान",
+        "medium": "मध्यम",
+        "hard": "कठिन",
+        "multi_pdf_info": "एक या अधिक PDF अपलोड करें",
+        "quiz_download": "📥 क्विज़ रिपोर्ट डाउनलोड करें",
+        "gen_flashcards": "⚡ फ्लैशकार्ड बनाएं",
+        "flip_card": "👆 पलटने के लिए टैप करें",
+        "next_card": "आगे →",
+        "prev_card": "← पीछे",
+        "card_of": "कार्ड",
+        "flashcard_error": "❌ फ्लैशकार्ड बनाने में विफल।",
     },
     "te": {
         "title": "📚 స్టడీ బడీ",
@@ -198,6 +224,19 @@ UI_TEXT = {
         "ollama_info": "`ollama serve` నడుస్తుందో నిర్ధారించుకోండి",
         "ollama_error": "⚠️ Ollama నడవడం లేదు. ollama serve చేయండి",
         "download": "📥 చాట్ చరిత్ర డౌన్‌లోడ్",
+        "flashcards": "🃏 ఫ్లాష్‌కార్డ్‌లు",
+        "difficulty": "కష్టస్థాయి",
+        "easy": "సులభం",
+        "medium": "మధ్యస్థం",
+        "hard": "కష్టం",
+        "multi_pdf_info": "ఒకటి లేదా అంతకంటే ఎక్కువ PDFలు అప్‌లోడ్ చేయండి",
+        "quiz_download": "📥 క్విజ్ రిపోర్ట్ డౌన్‌లోడ్",
+        "gen_flashcards": "⚡ ఫ్లాష్‌కార్డ్‌లు తయారుచేయి",
+        "flip_card": "👆 తిప్పడానికి నొక్కండి",
+        "next_card": "తర్వాత →",
+        "prev_card": "← మునుపటి",
+        "card_of": "కార్డ్",
+        "flashcard_error": "❌ ఫ్లాష్‌కార్డ్‌లు విఫలమైంది.",
     },
 }
 
@@ -358,7 +397,12 @@ def build_chat_prompt(pdf_text, history, user_question):
     for h in history[-6:]:
         role = "Student" if h["role"] == "user" else "Assistant"
         history_str += f"{role}: {h['message']}\n"
+
+    lang_names = {"en": "English", "hi": "Hindi", "te": "Telugu"}
+    response_lang = lang_names.get(st.session_state.get("language", "en"), "English")
+
     return f"""You are a helpful study assistant. Answer based ONLY on the provided notes. Be concise and exam-focused.
+Respond ONLY in {response_lang}, regardless of the language of the notes below.
 
 NOTES:
 {pdf_text[:4000]}
@@ -373,8 +417,14 @@ Assistant:"""
 # QUIZ GENERATION
 # ─────────────────────────────────────────────
 def generate_quiz_questions(pdf_text):
+    lang_names = {"en": "English", "hi": "Hindi", "te": "Telugu"}
+    response_lang = lang_names.get(st.session_state.get("language", "en"), "English")
+    difficulty = st.session_state.get("quiz_difficulty", "Medium")
+
     prompt = f"""Generate exactly 10 multiple choice questions from these notes.
 Each question must have 4 options (A, B, C, D) and one correct answer.
+Write the questions and options in {response_lang}.
+Make the questions {difficulty} difficulty level.
 
 Notes:
 {pdf_text[:4000]}
@@ -409,7 +459,47 @@ Start with [ end with ]. Valid JSON only. No markdown.
             ]
             if len(valid) >= 3:
                 return valid[:10]
-        except:
+        except Exception:
+            continue
+    return None
+
+
+# ─────────────────────────────────────────────
+# FLASHCARD GENERATION
+# ─────────────────────────────────────────────
+def generate_flashcards(pdf_text):
+    lang_names = {"en": "English", "hi": "Hindi", "te": "Telugu"}
+    response_lang = lang_names.get(st.session_state.get("language", "en"), "English")
+
+    prompt = f"""Generate exactly 10 flashcards from these notes for quick last-minute revision.
+Each flashcard has a short "front" (a term, question, or concept) and a "back" (a concise answer or explanation, max 2 sentences).
+Write the flashcards in {response_lang}.
+
+Notes:
+{pdf_text[:4000]}
+
+Start with [ end with ]. Valid JSON only. No markdown.
+
+[
+  {{
+    "front": "Term or question",
+    "back": "Concise answer or explanation"
+  }}
+]"""
+
+    for attempt in range(3):
+        raw = ai_generate(prompt)
+        try:
+            clean = re.sub(r"```json|```", "", raw).strip()
+            start = clean.find("[")
+            end = clean.rfind("]") + 1
+            if start == -1 or end == 0:
+                continue
+            cards = json.loads(clean[start:end])
+            valid = [c for c in cards if "front" in c and "back" in c]
+            if len(valid) >= 3:
+                return valid[:10]
+        except Exception:
             continue
     return None
 
@@ -441,6 +531,16 @@ if "backend" not in st.session_state:
     st.session_state.backend = "Groq"
 if "selected_model" not in st.session_state:
     st.session_state.selected_model = GROQ_MODELS[0]
+if "quiz_difficulty" not in st.session_state:
+    st.session_state.quiz_difficulty = "Medium"
+if "flashcards" not in st.session_state:
+    st.session_state.flashcards = None
+if "flashcard_idx" not in st.session_state:
+    st.session_state.flashcard_idx = 0
+if "flashcard_flipped" not in st.session_state:
+    st.session_state.flashcard_flipped = False
+if "pdf_names" not in st.session_state:
+    st.session_state.pdf_names = []
 
 
 # ─────────────────────────────────────────────
@@ -522,22 +622,38 @@ with st.sidebar:
 
     st.markdown("---")
 
-    # PDF Upload
+    # PDF Upload (multi-file)
     st.markdown(f"#### {T['upload']}")
-    uploaded_file = st.file_uploader(T["drop"], type=["pdf"])
+    st.caption(T["multi_pdf_info"])
+    uploaded_files = st.file_uploader(
+        T["drop"], type=["pdf"], accept_multiple_files=True
+    )
 
-    if uploaded_file:
-        if uploaded_file.name != st.session_state.pdf_name:
-            with st.spinner("Reading PDF..."):
-                text = extract_pdf_text(uploaded_file)
-            if text and len(text) > 100:
-                st.session_state.pdf_text = text
-                st.session_state.pdf_name = uploaded_file.name
+    if uploaded_files:
+        new_names = [f.name for f in uploaded_files]
+        if new_names != st.session_state.pdf_names:
+            with st.spinner("Reading PDF(s)..."):
+                texts = []
+                for f in uploaded_files:
+                    t = extract_pdf_text(f)
+                    if t and len(t) > 50:
+                        texts.append(f"--- {f.name} ---\n{t}")
+            combined = "\n\n".join(texts)
+            if combined and len(combined) > 100:
+                st.session_state.pdf_text = combined
+                st.session_state.pdf_name = ", ".join(new_names)
+                st.session_state.pdf_names = new_names
                 st.session_state.chat_history = []
                 st.session_state.quiz_questions = None
                 st.session_state.quiz_answers = {}
                 st.session_state.quiz_submitted = False
-                st.success(f"✅ {len(text):,} {T['upload_success']}")
+                st.session_state.flashcards = None
+                st.session_state.flashcard_idx = 0
+                st.success(f"✅ {len(combined):,} {T['upload_success']}")
+                if len(combined) > 4000:
+                    st.warning(
+                        "⚠️ Only the first ~4000 characters are used per question — long PDFs may lose content from later sections."
+                    )
             else:
                 st.error(T["upload_error"])
 
@@ -545,12 +661,29 @@ with st.sidebar:
         st.markdown("---")
         st.markdown(f"#### {T['mode']}")
         mode = st.radio(
-            "mode", [T["chat"], T["quiz"]], index=0, label_visibility="collapsed"
+            "mode",
+            [T["chat"], T["quiz"], T["flashcards"]],
+            index=0,
+            label_visibility="collapsed",
         )
         if "Chat" in mode or "चैट" in mode or "చాట్" in mode:
             st.session_state.mode = "Chat"
-        else:
+        elif "Quiz" in mode or "क्विज़" in mode or "క్విజ్" in mode:
             st.session_state.mode = "Quiz"
+        else:
+            st.session_state.mode = "Flashcards"
+
+        if st.session_state.mode == "Quiz":
+            st.markdown(f"##### {T['difficulty']}")
+            diff = st.radio(
+                "difficulty",
+                [T["easy"], T["medium"], T["hard"]],
+                index=1,
+                horizontal=True,
+                label_visibility="collapsed",
+            )
+            diff_map = {T["easy"]: "Easy", T["medium"]: "Medium", T["hard"]: "Hard"}
+            st.session_state.quiz_difficulty = diff_map.get(diff, "Medium")
 
         st.markdown("---")
         st.markdown(f"#### {T['file_info']}")
@@ -794,8 +927,101 @@ else:
                 )
 
             st.markdown("<br>", unsafe_allow_html=True)
+
+            # Quiz report download
+            quiz_report = f"Quiz Report — {st.session_state.pdf_name}\n"
+            quiz_report += f"Score: {score}/{total} ({percent}%)\n"
+            quiz_report += "=" * 50 + "\n\n"
+            for i, q in enumerate(questions):
+                user_ans = answers.get(i, "?")
+                quiz_report += f"Q{i+1}: {q['q']}\n"
+                quiz_report += f"Your answer: {user_ans}  |  Correct: {q['answer']}\n\n"
+            st.download_button(
+                label=T["quiz_download"],
+                data=quiz_report,
+                file_name=f"quiz_report_{st.session_state.pdf_name.split(',')[0].replace('.pdf','')}.txt",
+                mime="text/plain",
+            )
+
+            st.markdown("<br>", unsafe_allow_html=True)
             if st.button(T["retake"]):
                 st.session_state.quiz_questions = None
                 st.session_state.quiz_answers = {}
                 st.session_state.quiz_submitted = False
                 st.rerun()
+
+    elif st.session_state.mode == "Flashcards":
+        st.markdown(
+            f'<div class="hero-title">{T["flashcards"]}</div>', unsafe_allow_html=True
+        )
+        st.markdown(
+            f'<div class="hero-sub">{st.session_state.pdf_name} · {st.session_state.selected_model}</div>',
+            unsafe_allow_html=True,
+        )
+
+        if st.session_state.flashcards is None:
+            col_gen, _ = st.columns([2, 3])
+            with col_gen:
+                if st.button(T["gen_flashcards"], use_container_width=True):
+                    with st.spinner(T["generating"]):
+                        cards = generate_flashcards(st.session_state.pdf_text)
+                    if cards:
+                        st.session_state.flashcards = cards
+                        st.session_state.flashcard_idx = 0
+                        st.session_state.flashcard_flipped = False
+                        st.rerun()
+                    else:
+                        st.error(T["flashcard_error"])
+        else:
+            cards = st.session_state.flashcards
+            idx = st.session_state.flashcard_idx
+            card = cards[idx]
+            face_text = (
+                card["back"] if st.session_state.flashcard_flipped else card["front"]
+            )
+            face_color = "#10b981" if st.session_state.flashcard_flipped else "#6366f1"
+
+            st.markdown(
+                f"""
+                <div style="background:#13151c;border:2px solid {face_color};border-radius:16px;
+                            padding:50px 30px;min-height:220px;display:flex;align-items:center;
+                            justify-content:center;text-align:center;margin-bottom:14px;">
+                    <div style="font-size:1.2rem;color:#f1f5f9;font-weight:600;">{face_text}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+            col_flip, col_info = st.columns([1, 2])
+            with col_flip:
+                if st.button(T["flip_card"], use_container_width=True):
+                    st.session_state.flashcard_flipped = (
+                        not st.session_state.flashcard_flipped
+                    )
+                    st.rerun()
+            with col_info:
+                st.caption(f"{T['card_of']} {idx + 1} / {len(cards)}")
+
+            col_prev, col_next, col_regen = st.columns(3)
+            with col_prev:
+                if st.button(
+                    T["prev_card"], use_container_width=True, disabled=(idx == 0)
+                ):
+                    st.session_state.flashcard_idx -= 1
+                    st.session_state.flashcard_flipped = False
+                    st.rerun()
+            with col_next:
+                if st.button(
+                    T["next_card"],
+                    use_container_width=True,
+                    disabled=(idx == len(cards) - 1),
+                ):
+                    st.session_state.flashcard_idx += 1
+                    st.session_state.flashcard_flipped = False
+                    st.rerun()
+            with col_regen:
+                if st.button(T["regenerate"], use_container_width=True):
+                    st.session_state.flashcards = None
+                    st.session_state.flashcard_idx = 0
+                    st.session_state.flashcard_flipped = False
+                    st.rerun()

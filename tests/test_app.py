@@ -2,7 +2,7 @@
 Tests for Last Minute Study Buddy
 Run: pytest tests/ -v
 """
-import pytest
+
 import json
 import re
 
@@ -17,6 +17,7 @@ class TestPDFExtraction:
         fake.write_bytes(b"not a real pdf")
         try:
             import pdfplumber
+
             with pdfplumber.open(str(fake)) as pdf:
                 text = " ".join(p.extract_text() or "" for p in pdf.pages)
             assert isinstance(text, str)
@@ -42,21 +43,23 @@ class TestQuizParsing:
 
     def test_valid_quiz_json(self):
         """Valid quiz JSON should parse to 10 questions."""
-        sample = json.dumps([
-            {
-                "q": f"Question {i}?",
-                "options": ["A) opt1", "B) opt2", "C) opt3", "D) opt4"],
-                "answer": "A"
-            }
-            for i in range(10)
-        ])
+        sample = json.dumps(
+            [
+                {
+                    "q": f"Question {i}?",
+                    "options": ["A) opt1", "B) opt2", "C) opt3", "D) opt4"],
+                    "answer": "A",
+                }
+                for i in range(10)
+            ]
+        )
         questions = json.loads(sample)
         assert len(questions) == 10
         assert questions[0]["answer"] == "A"
 
     def test_quiz_json_with_fences(self):
         """JSON wrapped in markdown fences should parse after stripping."""
-        fenced = "```json\n[{\"q\": \"Q?\", \"options\": [\"A) a\", \"B) b\", \"C) c\", \"D) d\"], \"answer\": \"B\"}]\n```"
+        fenced = '```json\n[{"q": "Q?", "options": ["A) a", "B) b", "C) c", "D) d"], "answer": "B"}]\n```'
         clean = re.sub(r"```json|```", "", fenced).strip()
         start = clean.find("[")
         end = clean.rfind("]") + 1
@@ -75,7 +78,7 @@ class TestQuizParsing:
         question = {
             "q": "Test?",
             "options": ["A) a", "B) b", "C) c", "D) d"],
-            "answer": "C"
+            "answer": "C",
         }
         assert len(question["options"]) == 4
 
@@ -87,6 +90,7 @@ class TestMongoDB:
         """App should work if MongoDB is unreachable."""
         try:
             from pymongo import MongoClient
+
             client = MongoClient("mongodb://localhost:1", serverSelectionTimeoutMS=500)
             client.server_info()
             db = client["studybuddy"]

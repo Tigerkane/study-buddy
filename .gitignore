@@ -42,3 +42,10 @@ htmlcov/
 # Secrets (never commit these)
 .env
 secrets.txt
+config.toml
+
+# Scheduled commits
+.scheduled/
+schedule-commits.ps1
+auto-commit.ps1
+scheduled-commits.log
