@@ -1,0 +1,18 @@
+﻿2026-06-27T07:09:21.010773Z 00O [0KRunning with gitlab-runner 19.1.0 (5eb085ab)[0;m
+2026-06-27T07:09:21.010773Z 00O [0K  on Local Docker Runner JKSG6S20v, system ID: s_b8be26a99cae[0;m
+2026-06-27T07:09:21.010773Z 00O [0K  feature flags: FF_NETWORK_PER_BUILD:true[0;m
+2026-06-27T07:09:21.011344Z 00O section_start:1782544161:prepare_executor
+[0K
+2026-06-27T07:09:21.011344Z 00O+[0K[36;1mPreparing the "docker" executor[0;m[0;m
+2026-06-27T07:09:21.012798Z 00O [31;1mERROR: Failed to remove network for build[0;m
+2026-06-27T07:09:21.012798Z 00O [31;1mERROR: Preparation failed: getting docker info: error during connect: in the default daemon configuration on Windows, the docker client must be run with elevated privileges to connect: Get "http://%2F%2F.%2Fpipe%2Fdocker_engine/v1.51/info": open //./pipe/docker_engine: The system cannot find the file specified. (docker.go:1287:0s)[0;m
+2026-06-27T07:09:21.012798Z 00O [32;1mWill be retried in 3s ...[0;m
+2026-06-27T07:09:24.014287Z 00O [31;1mERROR: Failed to remove network for build[0;m
+2026-06-27T07:09:24.014287Z 00O [31;1mERROR: Preparation failed: getting docker info: error during connect: in the default daemon configuration on Windows, the docker client must be run with elevated privileges to connect: Get "http://%2F%2F.%2Fpipe%2Fdocker_engine/v1.51/info": open //./pipe/docker_engine: The system cannot find the file specified. (docker.go:1287:0s)[0;m
+2026-06-27T07:09:24.014287Z 00O [32;1mWill be retried in 3s ...[0;m
+2026-06-27T07:09:27.016958Z 00O [31;1mERROR: Failed to remove network for build[0;m
+2026-06-27T07:09:27.016958Z 00O [31;1mERROR: Preparation failed: getting docker info: error during connect: in the default daemon configuration on Windows, the docker client must be run with elevated privileges to connect: Get "http://%2F%2F.%2Fpipe%2Fdocker_engine/v1.51/info": open //./pipe/docker_engine: The system cannot find the file specified. (docker.go:1287:0s)[0;m
+2026-06-27T07:09:27.016958Z 00O [32;1mWill be retried in 3s ...[0;m
+2026-06-27T07:09:30.017779Z 00O section_end:1782544170:prepare_executor
+[0K
+2026-06-27T07:09:30.017779Z 00O [31;1mERROR: Job failed (system failure): getting docker info: error during connect: in the default daemon configuration on Windows, the docker client must be run with elevated privileges to connect: Get "http://%2F%2F.%2Fpipe%2Fdocker_engine/v1.51/info": open //./pipe/docker_engine: The system cannot find the file specified. (docker.go:1287:0s)[0;m

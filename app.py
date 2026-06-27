@@ -741,7 +741,8 @@ with st.sidebar:
             # Full-document mode toggle — only available with Groq's large-context model
             can_use_full_doc = (
                 st.session_state.backend == "Groq"
-                and st.session_state.selected_model == GROQ_MODELS[0]  # llama-3.3-70b-versatile
+                and st.session_state.selected_model
+                == GROQ_MODELS[0]  # llama-3.3-70b-versatile
             )
             if can_use_full_doc:
                 full_doc = st.toggle(
@@ -1100,19 +1101,27 @@ else:
             col_flip, col_info = st.columns([1, 2])
             with col_flip:
                 if st.button(T["flip_card"], use_container_width=True):
-                    st.session_state.flashcard_flipped = not st.session_state.flashcard_flipped
+                    st.session_state.flashcard_flipped = (
+                        not st.session_state.flashcard_flipped
+                    )
                     st.rerun()
             with col_info:
                 st.caption(f"{T['card_of']} {idx + 1} / {len(cards)}")
 
             col_prev, col_next, col_regen = st.columns(3)
             with col_prev:
-                if st.button(T["prev_card"], use_container_width=True, disabled=(idx == 0)):
+                if st.button(
+                    T["prev_card"], use_container_width=True, disabled=(idx == 0)
+                ):
                     st.session_state.flashcard_idx -= 1
                     st.session_state.flashcard_flipped = False
                     st.rerun()
             with col_next:
-                if st.button(T["next_card"], use_container_width=True, disabled=(idx == len(cards) - 1)):
+                if st.button(
+                    T["next_card"],
+                    use_container_width=True,
+                    disabled=(idx == len(cards) - 1),
+                ):
                     st.session_state.flashcard_idx += 1
                     st.session_state.flashcard_flipped = False
                     st.rerun()
